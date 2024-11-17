@@ -1,25 +1,43 @@
 name: Report
+
 on:
-  push:
   schedule:
-    - cron: '0 */12 * * *'
+    - cron: '0 */12 * * *'  # Run every 12 hours
+  push:
+    branches:
+      - main  # or your default branch
   watch:
     types: [started]
-  workflow_dispatch:
+  workflow_dispatch:  # Allow manual triggers
+
 jobs:
   build:
     if: github.repository == '0123-smallbottle/loudflare-WAF-to-AbuseIPDB'
     runs-on: ubuntu-latest
+    
     env:
       TZ: Asia/HongKong
+    
     steps:
-    - name: Checkout
-      uses: actions/checkout@main
-    - name: Set up python
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.8
-    - name: Install requirements
-      run: pip install -r requirements.txt
-    - name: Report
-      run: python main.py ${{ secrets.CLOUDFLARE_ZONE_ID }}  ${{ secrets.CLOUDFLARE_EMAIL }}  ${{ secrets.CLOUDFLARE_API_KEY }}  ${{ secrets.ABUSEIPDB_API_KEY }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run report script
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+        run: |
+          python main.py "$CLOUDFLARE_ZONE_ID" "$CLOUDFLARE_EMAIL" "$CLOUDFLARE_API_KEY" "$ABUSEIPDB_API_KEY"
