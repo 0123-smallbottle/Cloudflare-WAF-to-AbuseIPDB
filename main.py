@@ -6,79 +6,78 @@ import yaml
 import sys
 
 def load_config(path):
-    f = open(path, 'r', encoding='utf-8')
-    ystr = f.read()
-    ymllist = yaml.load(ystr, Loader=yaml.FullLoader)
-    return ymllist
+    with open(path, 'r', encoding='utf-8') as f:
+        ystr = f.read()
+        ymllist = yaml.load(ystr, Loader=yaml.FullLoader)
+        return ymllist
 
-# Load configuration either from file or command line arguments
+# Load configuration from file or environment variables
 if os.path.exists('config.yml'):
     c = load_config('config.yml')
-    CLOUDFLARE_ZONE_ID = c['CLOUDFLARE_ZONE_ID']
+    CLOUDFLARE_ZONE_IDS = c['CLOUDFLARE_ZONE_IDS']
     CLOUDFLARE_EMAIL = c['CLOUDFLARE_EMAIL']
     CLOUDFLARE_API_KEY = c['CLOUDFLARE_API_KEY']
     ABUSEIPDB_API_KEY = c['ABUSEIPDB_API_KEY']
+    WHITELISTED_IPS = c.get('WHITELISTED_IPS', "").split(",")
 else:
-    # Verify we have all required command line arguments
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 6:
         print("Error: Missing required arguments")
-        print("Usage: python main.py CLOUDFLARE_ZONE_ID CLOUDFLARE_EMAIL CLOUDFLARE_API_KEY ABUSEIPDB_API_KEY")
+        print("Usage: python main.py CLOUDFLARE_ZONE_IDS CLOUDFLARE_EMAIL CLOUDFLARE_API_KEY ABUSEIPDB_API_KEY WHITELISTED_IPS")
         sys.exit(1)
-    CLOUDFLARE_ZONE_ID = sys.argv[1]
+    CLOUDFLARE_ZONE_IDS = sys.argv[1].split(",")
     CLOUDFLARE_EMAIL = sys.argv[2]
     CLOUDFLARE_API_KEY = sys.argv[3]
     ABUSEIPDB_API_KEY = sys.argv[4]
+    WHITELISTED_IPS = sys.argv[5].split(",")
 
-PAYLOAD = {
-    "query": """query ListFirewallEvents($zoneTag: string, $filter: FirewallEventsAdaptiveFilter_InputObject) {
-        viewer {
-            zones(filter: { zoneTag: $zoneTag }) {
-                firewallEventsAdaptive(
-                    filter: $filter
-                    limit: 1000
-                    orderBy: [datetime_DESC]
-                ) {
-                    action
-                    clientASNDescription
-                    clientAsn
-                    clientCountryName
-                    clientIP
-                    clientRequestHTTPMethodName
-                    clientRequestHTTPProtocol
-                    clientRequestPath
-                    clientRequestQuery
-                    datetime
-                    rayName
-                    ruleId
-                    source
-                    userAgent
+def get_blocked_ips(zone_id, max_retries=3):
+    payload = {
+        "query": """query ListFirewallEvents($zoneTag: string, $filter: FirewallEventsAdaptiveFilter_InputObject) {
+            viewer {
+                zones(filter: { zoneTag: $zoneTag }) {
+                    firewallEventsAdaptive(
+                        filter: $filter
+                        limit: 1000
+                        orderBy: [datetime_DESC]
+                    ) {
+                        action
+                        clientASNDescription
+                        clientAsn
+                        clientCountryName
+                        clientIP
+                        clientRequestHTTPMethodName
+                        clientRequestHTTPProtocol
+                        clientRequestPath
+                        clientRequestQuery
+                        datetime
+                        rayName
+                        ruleId
+                        source
+                        userAgent
+                    }
                 }
             }
-        }
-    }""",
-    "variables": {
-        "zoneTag": CLOUDFLARE_ZONE_ID,
-        "filter": {
-            "datetime_geq": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.localtime(time.time()-60*60*8-60*60*2.5)),
-            "datetime_leq": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.localtime(time.time()-60*60*8)),
-            "action": "block"  # Only get blocked IPs
+        }""",
+        "variables": {
+            "zoneTag": zone_id,
+            "filter": {
+                "datetime_geq": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.localtime(time.time() - 60*60*10.5)),
+                "datetime_leq": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.localtime(time.time() - 60*60*8)),
+                "action": "block"
+            }
         }
     }
-}
+    payload = json.dumps(payload)
+    headers = {
+        "Content-Type": "application/json",
+        "X-Auth-Key": CLOUDFLARE_API_KEY,
+        "X-Auth-Email": CLOUDFLARE_EMAIL
+    }
 
-PAYLOAD = json.dumps(PAYLOAD)
-headers = {
-    "Content-Type": "application/json",
-    "X-Auth-Key": CLOUDFLARE_API_KEY,
-    "X-Auth-Email": CLOUDFLARE_EMAIL
-}
-
-def get_blocked_ip(max_retries=3):
     for attempt in range(max_retries):
         try:
-            r = requests.post("https://api.cloudflare.com/client/v4/graphql/",
-                            headers=headers, data=PAYLOAD, timeout=30)
-            r.raise_for_status()  # Raise an exception for bad status codes
+            r = requests.post("https://api.cloudflare.com/client/v4/graphql/", headers=headers, data=payload, timeout=30)
+            r.raise_for_status()
             return r.json()
         except Exception as e:
             print(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
@@ -96,8 +95,7 @@ def get_comment(it):
             f"clientRequestPath: {it['clientRequestPath']} "
             f"clientRequestQuery: {it['clientRequestQuery']} datetime: {it['datetime']} "
             f"rayName: {it['rayName']} ruleId: {it['ruleId']} userAgent: {it['userAgent']}. "
-            f"Report generated by Cloudflare-WAF-to-AbuseIPDB "
-            f"(https://github.com/MHG-LAB/Cloudflare-WAF-to-AbuseIPDB).")
+            f"Report generated by Cloudflare-WAF-to-AbuseIPDB.")
 
 def report_bad_ip(it):
     try:
@@ -124,32 +122,31 @@ def report_bad_ip(it):
         print(f"Error reporting IP: {str(e)}")
         return False
 
-# List of rule IDs to exclude
 excepted_ruleId = ["fa01280809254f82978e827892db4e46"]
 
 def main():
     print("==================== Start ====================")
     print(f"Current time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
-    print(f"Query time range: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()-60*60*8))}")
+    print(f"Query time range: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() - 60*60*8))}")
     
-    response = get_blocked_ip()
-    if not response:
-        print("Failed to get blocked IPs")
-        return
-
-    if "data" not in response or "viewer" not in response["data"]:
-        print("Invalid response format")
-        return
-
-    ip_bad_list = response["data"]["viewer"]["zones"][0]["firewallEventsAdaptive"]
-    print(f"Total events found: {len(ip_bad_list)}")
-
     reported_ip_list = []
-    for event in ip_bad_list:
-        if (event['ruleId'] not in excepted_ruleId and 
-            event['clientIP'] not in reported_ip_list):
-            if report_bad_ip(event):
-                reported_ip_list.append(event['clientIP'])
+
+    for zone_id in CLOUDFLARE_ZONE_IDS:
+        print(f"Processing Zone ID: {zone_id}")
+        response = get_blocked_ips(zone_id)
+        if not response or "data" not in response or "viewer" not in response["data"]:
+            print(f"Failed to get blocked IPs for Zone ID: {zone_id}")
+            continue
+
+        ip_bad_list = response["data"]["viewer"]["zones"][0]["firewallEventsAdaptive"]
+        print(f"Total events found in Zone {zone_id}: {len(ip_bad_list)}")
+
+        for event in ip_bad_list:
+            if (event['ruleId'] not in excepted_ruleId and 
+                event['clientIP'] not in reported_ip_list and 
+                event['clientIP'] not in WHITELISTED_IPS):
+                if report_bad_ip(event):
+                    reported_ip_list.append(event['clientIP'])
 
     print(f"Total unique IPs reported: {len(reported_ip_list)}")
     print("==================== End ====================")
