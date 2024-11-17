@@ -17,8 +17,25 @@ jobs:
     
     env:
       TZ: Asia/HongKong
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+      CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+      ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
     
     steps:
+      - name: Check required secrets
+        run: |
+          missing_secrets=()
+          [ -z "$CLOUDFLARE_ZONE_ID" ] && missing_secrets+=("CLOUDFLARE_ZONE_ID")
+          [ -z "$CLOUDFLARE_EMAIL" ] && missing_secrets+=("CLOUDFLARE_EMAIL")
+          [ -z "$CLOUDFLARE_API_KEY" ] && missing_secrets+=("CLOUDFLARE_API_KEY")
+          [ -z "$ABUSEIPDB_API_KEY" ] && missing_secrets+=("ABUSEIPDB_API_KEY")
+          if [ ${#missing_secrets[@]} -ne 0 ]; then
+            echo "Error: Missing required secrets: ${missing_secrets[*]}"
+            echo "Please add these secrets in your repository settings"
+            exit 1
+          fi
+      
       - name: Checkout code
         uses: actions/checkout@v3
       
@@ -34,10 +51,5 @@ jobs:
           pip install -r requirements.txt
       
       - name: Run report script
-        env:
-          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
         run: |
           python main.py "$CLOUDFLARE_ZONE_ID" "$CLOUDFLARE_EMAIL" "$CLOUDFLARE_API_KEY" "$ABUSEIPDB_API_KEY"
