@@ -43,7 +43,6 @@ PAYLOAD = {
                     clientAsn
                     clientCountryName
                     clientIP
-                    clientRequestHTTPHost
                     clientRequestHTTPMethodName
                     clientRequestHTTPProtocol
                     clientRequestPath
@@ -92,7 +91,6 @@ def get_comment(it):
     return (f"The IP has triggered Cloudflare WAF. action: {it['action']} source: {it['source']} "
             f"clientAsn: {it['clientAsn']} clientASNDescription: {it['clientASNDescription']} "
             f"clientCountryName: {it['clientCountryName']} clientIP: {it['clientIP']} "
-            f"clientRequestHTTPHost: {it['clientRequestHTTPHost']} "
             f"clientRequestHTTPMethodName: {it['clientRequestHTTPMethodName']} "
             f"clientRequestHTTPProtocol: {it['clientRequestHTTPProtocol']} "
             f"clientRequestPath: {it['clientRequestPath']} "
@@ -106,7 +104,7 @@ def report_bad_ip(it):
         url = 'https://api.abuseipdb.com/api/v2/report'
         params = {
             'ip': it['clientIP'],
-            'categories': '9,13,14,15,16,19,20,21',
+            'categories': '10,19',
             'comment': get_comment(it)
         }
         headers = {
