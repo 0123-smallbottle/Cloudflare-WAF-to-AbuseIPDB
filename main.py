@@ -145,7 +145,7 @@ def main():
             if (event['ruleId'] not in excepted_ruleId and 
                 event['clientIP'] not in reported_ip_list and 
                 event['clientIP'] not in WHITELISTED_IPS):
-                print(f"IP: {event['clientIP']}, Location: {event['clientCountryName']}, Time: {event['datetime']}")
+                print(f"IP: {event['clientIP']}, Location: {event['clientCountryName']}, Time: {event['datetime']}, ASN: {event['clientAsn']}, ASN Description: {event['clientASNDescription']}")
                 if report_bad_ip(event):
                     reported_ip_list.append(event['clientIP'])
 
