@@ -3,9 +3,6 @@ name: Report
 on:
   schedule:
     - cron: '0 */4 * * *'  # Run every 4 hours
-  push:
-    branches:
-      - main  # or your default branch
   watch:
     types: [started]
   workflow_dispatch:  # Allow manual triggers
