@@ -1,28 +1,33 @@
 # Cloudflare WAF to AbuseIPDB
 
-## 这是什么？
+## 告知
 
-我也不知道
+此項目對MHuiG的項目進行了修改，新增了以下功能:
+- Discord webhook support
+- 白名單IP
 
-## 它可以干嘛
 
-从 Cloudflare Graphql API 获取被 Cloudflare WAF 拦截(阻止/托管质询)的 IP 并提交给 AbuseIPDB
+## 它可以幹嘛
 
-## 它要怎么用
+從 Cloudflare Graphql API 獲取被 Cloudflare WAF 攔截(阻止/託管質詢)的 IP 並提交給 AbuseIPDB
 
-请不要 fork 此仓库！！ 使用模板导入 [Use this template](https://github.com/MHG-LAB/Cloudflare-WAF-to-AbuseIPDB/generate) !! 瞎点fork按钮发送垃圾 PR 将直接提交到 GitHub 黑名单中(
+## 它要怎麼用
 
-Actions 环境变量：
+請不要 fork 此倉庫！！ 使用模板導入 [Use this template](https://github.com/MHG-LAB/Cloudflare-WAF-to-AbuseIPDB/generate) !! 瞎點fork按鈕發送垃圾 PR 將直接提交到 GitHub 黑名單中(
+
+Actions 環境變數：
 - `CLOUDFLARE_ZONE_ID`: Cloudflare ZONE ID
 - `CLOUDFLARE_API_KEY`: Cloudflare API Key
 - `CLOUDFLARE_EMAIL`: Cloudflare Email
 - `ABUSEIPDB_API_KEY`: AbuseIPDB API Key
+- `WHITELISTED_IPS`: 白名單IP
+- `DISCORD_WEBHOOK_URL`: Discord Webhook url
 
-## 这些奇奇怪怪的文件是什么？
+## 這些奇奇怪怪的文件是什麼？
 
-有人经常访问这些，然而我这里又没有这些文件，于是我创建了他们。
+有人經常訪問這些，然而我這裡又沒有這些文件，於是我創建了他們。
 
-例如这些：
+例如這些：
 
 - https://abuseipdb.mhuig.top/robots.txt
 - https://abuseipdb.mhuig.top/phpinfo.php
@@ -30,18 +35,9 @@ Actions 环境变量：
 - https://abuseipdb.mhuig.top/../../../../../../../etc/passwd
 - etc.
 
-## 吐槽
-
-Cloudflare 的 API 不知道什么时候做了更改，找到文档时发现 PAYLOAD 需要使用 Graphql....
-
-如果 IP 有误伤，请联系我添加白名单！
-
-## 相关项目
-
-[AbuseIPDB-to-Cloudflare-WAF](https://github.com/MHG-LAB/AbuseIPDB-to-Cloudflare-WAF)
-
-或许可以构建反馈调节系统？
-
+## 相關項目
+此項目對MHuiG的項目進行了修改
+[Cloudflare WAF to AbuseIPDB](https://github.com/MHG-LAB/Cloudflare-WAF-to-AbuseIPDB)
 ## Support
 
 [AbuseIPDB](https://www.abuseipdb.com/) : AbuseIPDB is an IP address blacklist for webmasters and sysadmins to report IP addresses engaging in abusive behavior on their networks
@@ -49,12 +45,6 @@ Cloudflare 的 API 不知道什么时候做了更改，找到文档时发现 PAY
 [Cloudflare](https://www.cloudflare.com/)
 
 [Cloudflare Block Bad Bot Ruleset](https://github.com/XMD0718/cloudflare-block-bad-bot-ruleset)
-
-## AbuseIPDB Contributor 
-
-<a href="https://abuseipdb.mhuig.top/" title="AbuseIPDB is an IP address blacklist for webmasters and sysadmins to report IP addresses engaging in abusive behavior on their networks">
-	<img src="https://www.abuseipdb.com/contributor/82131.svg" alt="AbuseIPDB Contributor Badge" style="width: 781px;border-radius: 5px;border-top: 5px solid #058403;border-right: 5px solid #111;border-bottom: 5px solid #111;border-left: 5px solid #058403;padding: 5px;background: #35c246 linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.3) 50%, rgba(0,0,0,.2) 51%, rgba(0,0,0,0));padding: 5px;box-shadow: 2px 2px 1px 1px rgba(0, 0, 0, .2);">
-</a>
 
 ## License
 
