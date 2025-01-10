@@ -15,13 +15,30 @@
 
 請不要 fork 此倉庫！！ 使用模板導入 [Use this template](https://github.com/MHG-LAB/Cloudflare-WAF-to-AbuseIPDB/generate) !! 瞎點fork按鈕發送垃圾 PR 將直接提交到 GitHub 黑名單中(
 
-Actions 環境變數：
-- `CLOUDFLARE_ZONE_ID`: Cloudflare ZONE ID
+config.yml：
+- `CLOUDFLARE_ZONE_IDS`: Cloudflare ZONE IDs
 - `CLOUDFLARE_API_KEY`: Cloudflare API Key
 - `CLOUDFLARE_EMAIL`: Cloudflare Email
 - `ABUSEIPDB_API_KEY`: AbuseIPDB API Key
 - `WHITELISTED_IPS`: 白名單IP
 - `DISCORD_WEBHOOK_URL`: Discord Webhook url
+- `REPORT_IPS`: 是否舉報IP
+- `SEND_DISCORD_WEBHOOK`: 是否發送到discord
+
+### Example
+```
+REPORT_IPS: "true"
+SEND_DISCORD_WEBHOOK: "true"
+CLOUDFLARE_ZONE_IDS: 
+  - "xxx"
+  - "xxx"
+  - "xxx"
+CLOUDFLARE_EMAIL: "xxx@gmail.com"
+CLOUDFLARE_API_KEY: "xxx"
+ABUSEIPDB_API_KEY: "xxx"
+WHITELISTED_IPS: "1.1.1.1,8.8.8.8,2606:4700:4700::1111"
+DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/xxxxx"
+```
 
 ## 這些奇奇怪怪的文件是什麼？
 
