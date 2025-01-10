@@ -1,0 +1,30 @@
+name: Show Secreats
+on: 
+  workflow_dispatch:
+
+jobs:
+  debug:
+    name: Debug
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Set up secret file
+      env:
+        ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+        CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+        CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+        CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        WHITELISTED_IPS: ${{ secrets.WHITELISTED_IPS }}
+        
+      run: |
+        echo $ABUSEIPDB_API_KEY >> secrets.txt
+        echo $CLOUDFLARE_API_KEY >> secrets.txt
+        echo $CLOUDFLARE_EMAIL >> secrets.txt
+        echo $CLOUDFLARE_ZONE_ID >> secrets.txt
+        echo $WHITELISTED_IPS >> secrets.txt
+
+    - name: Run tmate
+      uses: mxschmitt/action-tmate@v2
