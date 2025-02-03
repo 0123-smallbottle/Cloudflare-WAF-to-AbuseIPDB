@@ -3,7 +3,6 @@ import requests
 import time
 import os
 import yaml
-import sys
 
 def load_config(path):
     with open(path, 'r', encoding='utf-8') as f:
@@ -93,44 +92,80 @@ def get_comment(it):
 def get_country_flag_emoji(country_code):
     return "".join([chr(ord(c) + 127397) for c in country_code.upper()])
 
-def send_discord_notification(event, abuse_response=None):
+def send_discord_notification(events_batch, abuse_responses=None):
     if not DISCORD_WEBHOOK_URL or not SEND_DISCORD_WEBHOOK:
         return
 
-    country_flag = get_country_flag_emoji(event['clientCountryName'])
-    
-    fields = [
-        {"name": "IP Address", "value": event['clientIP'], "inline": True},
-        {"name": "Country", "value": f"{country_flag} {event['clientCountryName']}", "inline": True},
-        {"name": "ASN", "value": f"{event['clientAsn']} ({event['clientASNDescription']})", "inline": False},
-        {"name": "Action", "value": event['action'], "inline": True},
-        {"name": "Source", "value": event['source'], "inline": True},
-        {"name": "Method", "value": event['clientRequestHTTPMethodName'], "inline": True},
-        {"name": "Path", "value": event['clientRequestPath'][:1024], "inline": False},
-        {"name": "Query", "value": event['clientRequestQuery'][:1024], "inline": False},
-        {"name": "User Agent", "value": event['userAgent'][:1024], "inline": False}
-    ]
+    embeds = []
+    if not REPORT_IPS:
+        # Group all events for same IP into one embed
+        ip_events = {}
+        for event in events_batch:
+            if event['clientIP'] not in ip_events:
+                ip_events[event['clientIP']] = []
+            ip_events[event['clientIP']].append(event)
+        
+        for ip, ip_event_list in ip_events.items():
+            first_event = ip_event_list[0]
+            country_flag = get_country_flag_emoji(first_event['clientCountryName'])
+            
+            fields = [
+                {"name": "IP Address", "value": first_event['clientIP'], "inline": True},
+                {"name": "Country", "value": f"{country_flag} {first_event['clientCountryName']}", "inline": True},
+                {"name": "ASN", "value": f"{first_event['clientAsn']} ({first_event['clientASNDescription']})", "inline": False},
+                {"name": "Total Events", "value": str(len(ip_event_list)), "inline": True},
+            ]
 
-    if abuse_response and 'data' in abuse_response:
-        report_data = abuse_response['data']
-        fields.append({"name": "AbuseIPDB Report", "value": f"Report #{report_data.get('reportNumber')} - Confidence: {report_data.get('abuseConfidenceScore')}%", "inline": False})
+            # Add details of each event
+            event_details = []
+            for idx, event in enumerate(ip_event_list, 1):
+                event_details.append(f"Event {idx}:")
+                event_details.append(f"Action: {event['action']}")
+                event_details.append(f"Source: {event['source']}")
+                event_details.append(f"Path: {event['clientRequestPath'][:256]}")
+                event_details.append(f"Time: {event['datetime']}\n")
 
-    title = "WAF Event Reported to AbuseIPDB" if REPORT_IPS else "WAF Event Detected"
-    embed = {
-        "title": title,
-        "color": 0xFF0000,
-        "fields": fields,
-        "timestamp": event['datetime']
-    }
+            fields.append({"name": "Event Details", "value": "\n".join(event_details)[:1024], "inline": False})
 
-    payload = {
-        "embeds": [embed]
-    }
+            embeds.append({
+                "title": "WAF Events Detected",
+                "color": 0xFF0000,
+                "fields": fields,
+                "timestamp": first_event['datetime']
+            })
+    else:
+        # Create individual embeds for report mode
+        for i, event in enumerate(events_batch):
+            country_flag = get_country_flag_emoji(event['clientCountryName'])
+            fields = [
+                {"name": "IP Address", "value": event['clientIP'], "inline": True},
+                {"name": "Country", "value": f"{country_flag} {event['clientCountryName']}", "inline": True},
+                {"name": "ASN", "value": f"{event['clientAsn']} ({event['clientASNDescription']})", "inline": False},
+                {"name": "Action", "value": event['action'], "inline": True},
+                {"name": "Source", "value": event['source'], "inline": True},
+                {"name": "Method", "value": event['clientRequestHTTPMethodName'], "inline": True},
+                {"name": "Path", "value": event['clientRequestPath'][:1024], "inline": False},
+            ]
 
-    try:
-        requests.post(DISCORD_WEBHOOK_URL, json=payload)
-    except Exception as e:
-        print(f"Failed to send Discord notification: {str(e)}")
+            if abuse_responses and len(abuse_responses) > i and abuse_responses[i] and 'data' in abuse_responses[i]:
+                report_data = abuse_responses[i]['data']
+                fields.append({"name": "AbuseIPDB Report", "value": f"Report #{report_data.get('reportNumber')} - Confidence: {report_data.get('abuseConfidenceScore')}%", "inline": False})
+
+            embeds.append({
+                "title": "WAF Event Reported to AbuseIPDB",
+                "color": 0xFF0000,
+                "fields": fields,
+                "timestamp": event['datetime']
+            })
+
+    # Send embeds in groups of 10   
+    for i in range(0, len(embeds), 10):
+        chunk = embeds[i:i+10]
+        payload = {"embeds": chunk}
+        try:
+            requests.post(DISCORD_WEBHOOK_URL, json=payload)
+        except Exception as e:
+            print(f"Failed to send Discord notification: {str(e)}")
 
 def report_bad_ip(it):
     if not REPORT_IPS:
@@ -167,6 +202,8 @@ def main():
     print(f"Query time range: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() - 60*60*8))}")
     
     reported_ip_list = []
+    events_batch = []
+    abuse_responses = []
 
     for zone_id in CLOUDFLARE_ZONE_IDS:
         print(f"Processing Zone ID: {zone_id}")
@@ -182,13 +219,24 @@ def main():
             if (event['clientIP'] not in reported_ip_list and 
                 event['clientIP'] not in WHITELISTED_IPS and
                 event['action'] == ACTION):
-                print(f"IP: {event['clientIP']}, Location: {event['clientCountryName']}, Time: {event['datetime']}, ASN: {event['clientAsn']}, ASN Description: {event['clientASNDescription']}")
+                print(f"IP: {event['clientIP']}, Location: {event['clientCountryName']}, Time: {event['datetime']}")
                 
-                abuse_response = report_bad_ip(event)
-                send_discord_notification(event, abuse_response)
-                
-                if REPORT_IPS and abuse_response:
-                    reported_ip_list.append(event['clientIP'])
+                events_batch.append(event)
+                if REPORT_IPS:
+                    abuse_response = report_bad_ip(event)
+                    abuse_responses.append(abuse_response)
+                    if abuse_response:
+                        reported_ip_list.append(event['clientIP'])
+
+                # Send in batches of 10
+                if len(events_batch) >= 10:
+                    send_discord_notification(events_batch, abuse_responses if REPORT_IPS else None)
+                    events_batch = []
+                    abuse_responses = []
+
+    # Send remaining events
+    if events_batch:
+        send_discord_notification(events_batch, abuse_responses if REPORT_IPS else None)
 
     print(f"Total unique IPs reported: {len(reported_ip_list)}")
     print("==================== End ====================")
