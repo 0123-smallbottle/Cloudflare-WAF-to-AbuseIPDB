@@ -3,7 +3,7 @@
 ## 告知
 
 此項目對MHuiG的項目進行了修改，新增了以下功能:
-- Discord webhook support
+- Discord webhook 支持
 - 白名單IP
 
 
@@ -24,6 +24,7 @@ config.yml：
 - `DISCORD_WEBHOOK_URL`: Discord Webhook url
 - `REPORT_IPS`: 是否舉報IP
 - `SEND_DISCORD_WEBHOOK`: 是否發送到discord
+- `ACTION`: 自定義要發送&舉報的行爲 (e.g. "block")
 
 ### Example
 ```

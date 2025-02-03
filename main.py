@@ -22,19 +22,7 @@ if os.path.exists('config.yml'):
     DISCORD_WEBHOOK_URL = c.get('DISCORD_WEBHOOK_URL', '')
     REPORT_IPS = c.get('REPORT_IPS', 'true').lower() == 'true'
     SEND_DISCORD_WEBHOOK = c.get('SEND_DISCORD_WEBHOOK', 'true').lower() == 'true'
-else:
-    if len(sys.argv) < 6:
-        print("Error: Missing required arguments")
-        print("Usage: python main.py CLOUDFLARE_ZONE_IDS CLOUDFLARE_EMAIL CLOUDFLARE_API_KEY ABUSEIPDB_API_KEY WHITELISTED_IPS")
-        sys.exit(1)
-    CLOUDFLARE_ZONE_IDS = sys.argv[1].split(",")
-    CLOUDFLARE_EMAIL = sys.argv[2]
-    CLOUDFLARE_API_KEY = sys.argv[3]
-    ABUSEIPDB_API_KEY = sys.argv[4]
-    WHITELISTED_IPS = sys.argv[5].split(",")
-    DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
-    REPORT_IPS = True
-    SEND_DISCORD_WEBHOOK = True
+    ACTION = c.get('ACTION')
 
 def get_blocked_ips(zone_id, max_retries=3):
     payload = {
@@ -192,7 +180,8 @@ def main():
 
         for event in ip_bad_list:
             if (event['clientIP'] not in reported_ip_list and 
-                event['clientIP'] not in WHITELISTED_IPS):
+                event['clientIP'] not in WHITELISTED_IPS and
+                event['action'] == ACTION):
                 print(f"IP: {event['clientIP']}, Location: {event['clientCountryName']}, Time: {event['datetime']}, ASN: {event['clientAsn']}, ASN Description: {event['clientASNDescription']}")
                 
                 abuse_response = report_bad_ip(event)
