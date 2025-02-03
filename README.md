@@ -25,6 +25,7 @@ config.yml：
 - `REPORT_IPS`: 是否舉報IP
 - `SEND_DISCORD_WEBHOOK`: 是否發送到discord
 - `ACTION`: 自定義要發送&舉報的行爲 (e.g. "block")
+- `CUSTOM_MESSAGE`: AbuseIPD舉報内容最後的自定義訊息
 
 ### Example
 ```
